@@ -1,0 +1,17 @@
+#!/bin/sh
+# bosco_add_host: Used to install ssh keys and blahp on remote hosts.
+
+# 
+# Arguments:
+# $1 - fqdn hostname of remote host to install ssh keys
+#
+
+# Bosco key location
+bosco_key=$HOME/.ssh/bosco_key.rsa
+
+if [ ! -e $bosco_key ]; then
+    ssh-keygen -q -t rsa -f $bosco_key
+
+fi
+
+
