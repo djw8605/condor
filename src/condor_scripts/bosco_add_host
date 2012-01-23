@@ -30,5 +30,5 @@ ssh-copy-id -i $bosco_key $remote_host
 glite_location=`condor_config_val GLITE_LOCATION`
 
 # Copy over blahp
-rsync -av $glite_location $remote_host:bosco/
+rsync -av -e "ssh -i $bosco_key" $glite_location $remote_host:bosco/
 
