@@ -38,7 +38,11 @@ ssh-copy-id -i $bosco_key $remote_host
 
 # First, find the blahp
 glite_location=`condor_config_val GLITE_LOCATION`
+release_dir=`condor_config_val RELEASE_DIR`
 
 # Copy over blahp
-rsync -av -e "ssh -i $bosco_key" $glite_location $remote_host:bosco/
+rsync -av -e "ssh -i $bosco_key" $glite_location $remote_host:bosco/libexec/
+rsync -av -e "ssh -i $bosco_key" $release_dir/lib/libclassad.so* $remote_host:bosco/lib/
+rsync -av -e "ssh -i $bosco_key" $release_dir/lib/condor $remote_host:bosco/lib/
+
 
