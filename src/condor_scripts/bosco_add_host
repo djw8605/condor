@@ -22,10 +22,23 @@ remote_host=$1
 # Bosco key location
 bosco_key=$HOME/.ssh/bosco_key.rsa
 
+# Bosco password location
+bosco_pass=$HOME/.bosco/.pass
+
 
 # If the key doesn't exist, create it
 if [ ! -e $bosco_key ]; then
-    ssh-keygen -q -t rsa -f $bosco_key
+    # Read in password for bosco key
+    stty -echo
+    read -p "Enter password for bosco ssh key: " passw; echo
+    stty echo
+
+    # Output the password to a specially crafted file
+    mkdir -p $HOME/.bosco
+    echo $passw > $bosco_pass
+    chmod go-rwx $bosco_pass
+    
+    ssh-keygen -q -t rsa -f $bosco_key -P $passw
 fi
 
 
