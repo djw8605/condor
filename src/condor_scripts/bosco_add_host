@@ -148,6 +148,3 @@ echo "Installation complete"
 
 # Shut down ssh-agent
 eval `ssh-agent -sk` > /dev/null
-
-
-
