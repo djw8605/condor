@@ -426,6 +426,7 @@ echo "Installing BOSCO on $remote_host..."
 # Make the necessary remote directories
 ssh $remote_host "mkdir -p bosco/glite/lib"
 
+
 # Copy over blahp
 rsync -aq $glite_location/[^l]* $remote_host:bosco/glite/
 if [ -d $release_dir/lib64 ] ; then
