@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2012, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -17,32 +17,17 @@
  *
  ***************************************************************/
 
-#include "NameFinder.h"
-#include <cctype>
-#include <algorithm>
-#include <iterator>
-NameFinder::NameFinder(const std::string& logname, const char d) :
-       delim(d), log(logname)
-{
-       it = log.begin();       
-}
+#ifndef __FTGAHP_COMMON_H__
+#define __FTGAHP_COMMON_H__
 
-namespace {
-bool not_space(char ch)
-{
-	return !std::isspace(ch);
-}
-}
+#include "gahp_common.h"
 
-std::string NameFinder::get()
-{
-	std::string entry;
-	it = std::find_if(it,log.end(),not_space);
-	if(it != log.end()) {
-		std::string::iterator p = std::find(it,log.end(),delim);
-		entry.assign(it,p);
-		it = p + ( p == log.end() ? 0 : 1 );
-	}
-	return entry;
-}
+#define GAHP_REQUEST_PIPE 		100
+#define GAHP_RESULT_PIPE		101
+#define GAHP_REQUEST_ACK_PIPE	102
 
+int
+parse_gahp_command (const char* raw, Gahp_Args* args);
+
+
+#endif
