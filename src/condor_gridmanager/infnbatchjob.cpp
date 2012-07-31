@@ -470,6 +470,37 @@ void INFNBatchJob::doEvaluateState()
 		} break;
 		case GM_TRANSFER_INPUT: {
 			// Transfer input sandbox
+			if ( numSubmitAttempts >= MAX_SUBMIT_ATTEMPTS ) {
+				if ( errorString == "" ) {
+					jobAd->Assign( ATTR_HOLD_REASON,
+								   "Attempts to submit failed" );
+				}
+				gmState = GM_HOLD;
+				break;
+			}
+			// After a submit, wait at least submitInterval before trying
+			// another one.
+			if ( now < lastSubmitAttempt + submitInterval ) {
+				if ( condorState == REMOVED || condorState == HELD ) {
+					gmState = GM_UNSUBMITTED;
+					break;
+				}
+				unsigned int delay = 0;
+				if ( (lastSubmitAttempt + submitInterval) > now ) {
+					delay = (lastSubmitAttempt + submitInterval) - now;
+				}				
+				daemonCore->Reset_Timer( evaluateStateTid, delay );
+				break;
+			}
+
+			// Once RequestSubmit() is called at least once, you must
+			// CancelRequest() once you're done with the request call
+			if ( myResource->RequestSubmit( this ) == false ) {
+				break;
+			}
+
+			// If our blahp is local, we don't have to do any file transfer,
+			// so go straight to submitting the job.
 			if ( !myResource->GahpIsRemote() ) {
 				gmState = GM_SUBMIT;
 				break;
@@ -505,13 +536,15 @@ void INFNBatchJob::doEvaluateState()
 				 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				break;
 			}
+			lastSubmitAttempt = time(NULL);
+			numSubmitAttempts++;
 			if ( rc != 0 ) {
 				// Failure!
 				dprintf( D_ALWAYS,
 						 "(%d.%d) blah_download_sandbox() failed: %s\n",
 						 procID.cluster, procID.proc,
-						 gahp->getErrorString() );
-				errorString = gahp->getErrorString();
+						 m_xfer_gahp->getErrorString() );
+				errorString = m_xfer_gahp->getErrorString();
 				gmState = GM_CLEAR_REQUEST;
 			} else {
 				gmState = GM_SUBMIT;
@@ -528,67 +561,45 @@ void INFNBatchJob::doEvaluateState()
 				break;
 			}
 			*/
-			if ( numSubmitAttempts >= MAX_SUBMIT_ATTEMPTS ) {
-				jobAd->Assign( ATTR_HOLD_REASON,
-							   "Attempts to submit failed" );
+			char *job_id_string = NULL;
+
+			if ( gahpAd == NULL ) {
+				gahpAd = buildSubmitAd();
+			}
+			if ( gahpAd == NULL ) {
 				gmState = GM_HOLD;
 				break;
 			}
-			// After a submit, wait at least submitInterval before trying
-			// another one.
-			if ( now >= lastSubmitAttempt + submitInterval ) {
-				char *job_id_string = NULL;
 
-				// Once RequestSubmit() is called at least once, you must
-				// CancelRequest() once you're done with the request call
-				if ( myResource->RequestSubmit( this ) == false ) {
-					break;
-				}
-
-				if ( gahpAd == NULL ) {
-					gahpAd = buildSubmitAd();
-				}
-				if ( gahpAd == NULL ) {
-					gmState = GM_HOLD;
-					break;
-				}
-
-				rc = gahp->blah_job_submit( gahpAd, &job_id_string );
-				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
-					 rc == GAHPCLIENT_COMMAND_PENDING ) {
-					break;
-				}
-				lastSubmitAttempt = time(NULL);
+			rc = gahp->blah_job_submit( gahpAd, &job_id_string );
+			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
+				 rc == GAHPCLIENT_COMMAND_PENDING ) {
+				break;
+			}
+			lastSubmitAttempt = time(NULL);
+			if ( !myResource->GahpIsRemote() ) {
 				numSubmitAttempts++;
-				if ( rc == GLOBUS_SUCCESS ) {
-					SetRemoteJobId( job_id_string );
-					if(jobProxy) {
-						remoteProxyExpireTime = jobProxy->expiration_time;
-					}
-					WriteGridSubmitEventToUserLog( jobAd );
-					gmState = GM_SUBMIT_SAVE;
-				} else {
-					// unhandled error
-					dprintf( D_ALWAYS,
-							 "(%d.%d) blah_job_submit() failed: %s\n",
-							 procID.cluster, procID.proc,
-							 gahp->getErrorString() );
-					errorString = gahp->getErrorString();
-					myResource->CancelSubmit( this );
-					gmState = GM_DELETE_SANDBOX;
-					reevaluate_state = true;
+			}
+			if ( rc == GLOBUS_SUCCESS ) {
+				SetRemoteJobId( job_id_string );
+				if(jobProxy) {
+					remoteProxyExpireTime = jobProxy->expiration_time;
 				}
-				if ( job_id_string != NULL ) {
-					free( job_id_string );
-				}
-			} else if ( condorState == REMOVED || condorState == HELD ) {
-				gmState = GM_UNSUBMITTED;
+				WriteGridSubmitEventToUserLog( jobAd );
+				gmState = GM_SUBMIT_SAVE;
 			} else {
-				unsigned int delay = 0;
-				if ( (lastSubmitAttempt + submitInterval) > now ) {
-					delay = (lastSubmitAttempt + submitInterval) - now;
-				}				
-				daemonCore->Reset_Timer( evaluateStateTid, delay );
+				// unhandled error
+				dprintf( D_ALWAYS,
+						 "(%d.%d) blah_job_submit() failed: %s\n",
+						 procID.cluster, procID.proc,
+						 gahp->getErrorString() );
+				errorString = gahp->getErrorString();
+				myResource->CancelSubmit( this );
+				gmState = GM_DELETE_SANDBOX;
+				reevaluate_state = true;
+			}
+			if ( job_id_string != NULL ) {
+				free( job_id_string );
 			}
 			} break;
 		case GM_SUBMIT_SAVE: {
@@ -652,7 +663,7 @@ void INFNBatchJob::doEvaluateState()
 						 "(%d.%d) blah_job_status() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
 				errorString = gahp->getErrorString();
-				gmState = GM_CANCEL;
+				gmState = GM_HOLD;
 				break;
 			}
 			ProcessRemoteAd( status_ad );
@@ -715,6 +726,23 @@ void INFNBatchJob::doEvaluateState()
 				CondorVersionInfo ver_info;
 				m_filetrans->setPeerVersion( ver_info );
 
+				// Add extra remaps for the canonical stdout/err filenames.
+				// If using the FileTransfer object, the starter will rename the
+				// stdout/err files, and we need to remap them back here.
+				std::string file;
+				if ( jobAd->LookupString( ATTR_JOB_OUTPUT, file ) &&
+					 strcmp( file.c_str(), StdoutRemapName ) ) {
+
+					m_filetrans->AddDownloadFilenameRemap( StdoutRemapName,
+														   file.c_str() );
+				}
+				if ( jobAd->LookupString( ATTR_JOB_ERROR, file ) &&
+					 strcmp( file.c_str(), StderrRemapName ) ) {
+
+					m_filetrans->AddDownloadFilenameRemap( StderrRemapName,
+														   file.c_str() );
+				}
+
 				// TODO Should we ever fill the hole?
 				PunchCedarHole( myResource->RemoteHostname() );
 			}
@@ -729,9 +757,9 @@ void INFNBatchJob::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) blah_upload_sandbox() failed: %s\n",
 						 procID.cluster, procID.proc,
-						 gahp->getErrorString() );
-				errorString = gahp->getErrorString();
-				gmState = GM_DELETE_SANDBOX;
+						 m_xfer_gahp->getErrorString() );
+				errorString = m_xfer_gahp->getErrorString();
+				gmState = GM_HOLD;
 			} else {
 				gmState = GM_DONE_SAVE;
 			}
@@ -809,8 +837,8 @@ void INFNBatchJob::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) blah_destroy_sandbox() failed: %s\n",
 						 procID.cluster, procID.proc,
-						 gahp->getErrorString() );
-				errorString = gahp->getErrorString();
+						 m_xfer_gahp->getErrorString() );
+				errorString = m_xfer_gahp->getErrorString();
 				gmState = GM_HOLD;
 				break;
 			}
@@ -835,7 +863,7 @@ void INFNBatchJob::doEvaluateState()
 			// forgetting about current submission and trying again.
 			// TODO: Let our action here be dictated by the user preference
 			// expressed in the job ad.
-			if ( remoteJobId != NULL && condorState != REMOVED ) {
+			if (  (remoteSandboxId != NULL || remoteJobId != NULL) && condorState != REMOVED ) {
 				gmState = GM_HOLD;
 				break;
 			}
@@ -1235,6 +1263,22 @@ ClassAd *INFNBatchJob::buildSubmitAd()
 		}
 
 		old_value = "";
+		submit_ad->LookupString( ATTR_JOB_OUTPUT, old_value );
+		if ( !old_value.empty() && !nullFile( old_value.c_str() ) ) {
+			submit_ad->InsertAttr( ATTR_JOB_OUTPUT, StdoutRemapName );
+		}
+
+		new_value = "";
+		submit_ad->LookupString( ATTR_JOB_ERROR, new_value );
+		if ( !new_value.empty() && !nullFile( new_value.c_str() ) ) {
+			if ( old_value == new_value ) {
+				submit_ad->InsertAttr( ATTR_JOB_ERROR, StdoutRemapName );
+			} else {
+				submit_ad->InsertAttr( ATTR_JOB_ERROR, StderrRemapName );
+			}
+		}
+
+		old_value = "";
 		submit_ad->LookupString( ATTR_X509_USER_PROXY, old_value );
 		if ( !old_value.empty() ) {
 			submit_ad->InsertAttr( ATTR_X509_USER_PROXY, condor_basename( old_value.c_str() ) );
@@ -1270,8 +1314,6 @@ ClassAd *INFNBatchJob::buildTransferAd()
 	const char *attrs_to_copy[] = {
 		ATTR_JOB_CMD,
 		ATTR_JOB_INPUT,
-		ATTR_JOB_OUTPUT,
-		ATTR_JOB_ERROR,
 		ATTR_TRANSFER_EXECUTABLE,
 		ATTR_TRANSFER_INPUT_FILES,
 		ATTR_TRANSFER_OUTPUT_FILES,
@@ -1303,6 +1345,27 @@ ClassAd *INFNBatchJob::buildTransferAd()
 	ClassAd *xfer_ad = new ClassAd();
 	ExprTree *next_expr;
 	const char *next_name;
+
+	std::string stdout_path;
+	std::string stderr_path;
+	jobAd->LookupString( ATTR_JOB_OUTPUT, stdout_path );
+	if ( !stdout_path.empty() && !nullFile( stdout_path.c_str() ) ) {
+		xfer_ad->InsertAttr( ATTR_JOB_OUTPUT, StdoutRemapName );
+	}
+	jobAd->LookupString( ATTR_JOB_ERROR, stderr_path );
+	if ( !stderr_path.empty() && !nullFile( stderr_path.c_str() ) ) {
+		if ( stdout_path == stderr_path ) {
+			xfer_ad->InsertAttr( ATTR_JOB_ERROR, StdoutRemapName );
+		} else {
+			xfer_ad->InsertAttr( ATTR_JOB_ERROR, StderrRemapName );
+		}
+	}
+
+	// Initialize ATTR_TRANSFER_OUTPUT_FILES to an empty string.
+	// Right now, we don't support transferring all new/modified output
+	// files. In that case, we need ATTR_TRANSFER_OUTPUT_FILES to always
+	// be set. Otherwise, stdout and stderr aren't transferred.
+	xfer_ad->InsertAttr( ATTR_TRANSFER_OUTPUT_FILES, "" );
 
 	index = -1;
 	while ( attrs_to_copy[++index] != NULL ) {
