@@ -24,11 +24,7 @@ if ( WITH_CREAM )
 
 if ( NOT PROPER )
 
-	if ( ${SYSTEM_NAME} MATCHES "rhel3" )
-		set( KERBEROS_INCLUDE_FLAG -I/usr/kerberos/include )
-	else()
-		set( KERBEROS_INCLUDE_FLAG "" )
-	endif()
+	set( KERBEROS_INCLUDE_FLAG "" )
 
 		# we define cream 1st because other externals will place bits there.
 		condor_pre_external( CREAM org.glite.ce.cream-client-api-c-1.12.1-14-p6 "lib;include;include/glite/security;opt" "done")
@@ -251,17 +247,20 @@ if ( NOT PROPER )
 
 else( NOT PROPER )
 
-        # If there are sub-packages to cream you may wish to breakout as was done below
-	find_multiple("glite_ce_cream_client_soap;glite_ce_cream_client_util;glite_security_gsoap_plugin_2713_cxx;glite_security_gss;gridsite" CREAM_FOUND )
-        
+        if ( ${SYSTEM_NAME} MATCHES "rhel6" OR ${SYSTEM_NAME} MATCHES "centos6")
+            find_multiple("glite_ce_cream_client_soap;glite_ce_cream_client_util;glite_security_gsoap_plugin_2716_cxx;glite_security_gss;gridsite" CREAM_FOUND )
+        else()
+            find_multiple("glite_ce_cream_client_soap;glite_ce_cream_client_util;glite_security_gsoap_plugin_2713_cxx;glite_security_gss;gridsite" CREAM_FOUND )
+        endif()
+
         if (CREAM_FOUND)
+            dprint("CREAM_FOUND=${CREAM_FOUND}") 
+            
             find_multiple("log4cpp" LOG4CPP)
-            find_multiple("boost_thread" B_THREAD)
-            find_multiple("boost_regex" B_REGEX)
-            if (LOG4CPP )
-                set (CREAM_FOUND "${CREAM_FOUND};${LOG4CPP};${B_THREAD};${B_REGEX}")
+            if (LOG4CPP)
+                set (CREAM_FOUND "${CREAM_FOUND};${LOG4CPP}")
             else()
-                message ( STATUS "missing cream dependencies (LOG4CPP=${LOG4CPP} BOOST_THREAD=${B_THREAD} BOOST_REGEX=${B_REGEX})" )
+                message ( STATUS "missing cream dependencies (LOG4CPP=${LOG4CPP})" )
                 unset (CREAM_FOUND)
             endif()
         endif()

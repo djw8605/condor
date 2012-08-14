@@ -16,22 +16,4 @@
  # 
  ############################################################### 
 
-if ( LINUX )
-	option(WITH_LIBDELTACLOUD "Compiling with support for Deltacloud" ON)
-endif( LINUX )
-
-if (WITH_LIBDELTACLOUD)
-
-	check_include_files("libdeltacloud/libdeltacloud.h" HAVE_DELTACLOUD_H)
-	if (HAVE_DELTACLOUD_H)
-	  find_multiple( "deltacloud" LIBDELTACLOUD_FOUND )
-	endif()
-endif()
-
-if (LIBDELTACLOUD_FOUND)
-	message (STATUS "external configured (LIBDELTACLOUD_FOUND=${LIBDELTACLOUD_FOUND})")
-	set( LIBDELTACLOUD_FOUND ${LIBDELTACLOUD_FOUND} PARENT_SCOPE )
-	set( HAVE_EXT_LIBDELTACLOUD ON PARENT_SCOPE )
-else()
-	message (STATUS "external skipped (libdeltacloud)")
-endif(LIBDELTACLOUD_FOUND)
+condor_unit_test ( _collector_tester collector_tests.cpp "" )

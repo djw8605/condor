@@ -24,10 +24,15 @@ if (NOT WINDOWS)
     if (NOT PROPER) 
         set (BOOST_COMPONENTS thread) 
     else()
-        dprint("TSTCLAIR: Add support for internal unit testing") 
-        #set (BOOST_COMPONENTS test)
+
+	if (BUILD_TESTING) 
+	  set (BOOST_COMPONENTS unit_test_framework ${BOOST_COMPONENTS})
+	endif()
+
     endif()
 
+    # The following is helpful if you are trying to debug cmake find module
+    #  set (Boost_DEBUG TRUE)
     find_package( Boost 1.33.1 COMPONENTS ${BOOST_COMPONENTS} )
 
     # always prefer system libraries where possible
@@ -65,26 +70,30 @@ endif( NOT WINDOWS )
 # we only use our version of boost if the system is not good enough
 if (NOT PROPER) # AND (NOT Boost_FOUND OR SYSTEM_NOT_UP_TO_SNUFF) )
 
-	condor_pre_external( BOOST boost_1_49_0 "lib;include" "include/boost")
+	set(BOOST_FILENAME boost_1_49_0)
+	condor_pre_external( BOOST ${BOOST_FILENAME}-p1 "lib;include" "include/boost")
 	
 	if (WINDOWS)
 	  # need to expand the configure and
-	  set(TOOLSET msvc)
+	  set(TOOLSET msvc-9.0)
 	  set(JAM_EXT bat)
 	  set(EXEC .\\)
+
+	  set(BUILD_OPTIONS )
 	else()
 
-            if (DARWIN)
+	if (DARWIN)
 	  	set(TOOLSET darwin)
-	    else()
+	else()
 		set(TOOLSET gcc)
-	    endif()
+	endif()
 
-            set(JAM_EXT sh)
-            set(EXEC ./)
-        endif()
+		set(BUILD_OPTIONS --layout=system variant=release)
+        set(JAM_EXT sh)
+        set(EXEC ./)
+	endif()
 
-	set(BOOST_MIN_BUILD_DEP --with-thread)
+	set(BOOST_MIN_BUILD_DEP --with-thread --with-test)
 	set(BOOST_PATCH echo "nothing")
 	set(BOOST_INSTALL echo "nothing")
 	unset(BOOST_INCLUDE)
@@ -92,27 +101,29 @@ if (NOT PROPER) # AND (NOT Boost_FOUND OR SYSTEM_NOT_UP_TO_SNUFF) )
 	# so the idea of privately staging boost is silly.
 	ExternalProject_Add(boost
 		#-- Download Step ----------
-		 DOWNLOAD_COMMAND wget -N http://parrot.cs.wisc.edu/externals/${BOOST_VER}.tar.gz ${CMD_TERM}
+		 DOWNLOAD_COMMAND wget -N http://parrot.cs.wisc.edu/externals/${BOOST_FILENAME}.tar.gz ${CMD_TERM}
 		 DOWNLOAD_DIR ${BOOST_STAGE}/dl
-		 URL http://parrot.cs.wisc.edu/externals/${BOOST_VER}.tar.gz
+		 URL http://parrot.cs.wisc.edu/externals/${BOOST_FILENAME}.tar.gz
 		#--Patch step ----------
 		 PATCH_COMMAND ${BOOST_PATCH}
 		#--Configure step ----------
-		 CONFIGURE_COMMAND cd ${BOOST_VER} ${CMD_TERM}
+		 CONFIGURE_COMMAND cd ${BOOST_FILENAME} ${CMD_TERM}
 		 ./bootstrap.${JAM_EXT} --prefix=${BOOST_INSTALL_LOC}
 		#--Build Step ----------
-		BUILD_COMMAND cd ${BOOST_VER} &&
-		${EXEC}bjam ${BOOST_MIN_BUILD_DEP} --layout=system --prefix=${BOOST_INSTALL_LOC} --libdir=${BOOST_INSTALL_LOC}/lib define=BOOST_HAS_THREADS link=static variant=release toolset=${TOOLSET} install
+		BUILD_COMMAND cd ${BOOST_FILENAME} &&
+		${EXEC}bjam ${BOOST_MIN_BUILD_DEP} --prefix=${BOOST_INSTALL_LOC} --libdir=${BOOST_INSTALL_LOC}/lib define=BOOST_HAS_THREADS ${BUILD_OPTIONS} toolset=${TOOLSET} link=static install
 		BUILD_IN_SOURCE 1
 		#--install Step ----------
 		INSTALL_DIR ${BOOST_INSTALL_LOC}
-		INSTALL_COMMAND cd ${BOOST_VER} && ${BOOST_INSTALL} )
+		INSTALL_COMMAND cd ${BOOST_FILENAME} && ${BOOST_INSTALL} )
 				  	
 	if (WINDOWS)
 		set(BOOST_ROOT ${BOOST_INSTALL_LOC} PARENT_SCOPE)
-	endif()
-
-	condor_post_external( boost "include" "lib" )
+		set(BOOST_SHORTVER 1_49 PARENT_SCOPE)
+		condor_post_external( boost "include/boost-1_49" "lib" )
+	else()
+		condor_post_external( boost "include" "lib" )
+	endif()	
 
 endif()
 

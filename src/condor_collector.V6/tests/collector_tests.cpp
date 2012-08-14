@@ -1,14 +1,13 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
- * University of Wisconsin-Madison, WI.
- * 
+ * Copyright (C) 1990-2012, Red Hat Inc.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,44 +16,22 @@
  *
  ***************************************************************/
 
+#define BOOST_TEST_MAIN
+ 
+#include <boost/test/unit_test.hpp>
+#include <string.h>
 
-#include "condor_common.h"
-#include "translation_utils.h"
+/////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_SUITE( collector_auto )
 
-
-const char *
-getNameFromNum( int num, const struct Translation *table )
+// --------------------------------------------------------------------
+BOOST_AUTO_TEST_CASE( example_test )
 {
-	if( num < 0 ) {
-		return NULL;
-	}
+    BOOST_CHECK( strcmp( "foo", "foo" ) == 0 );
 
-	int i;
 
-	for( i=0 ; (table[i].name[0] != '\0') ; i++ ) {
-		if ( table[i].number == num ) {
-			return table[i].name;
-		}
-	}
-	return NULL;
+    BOOST_CHECK_NO_THROW(); 
 }
 
-
-int
-getNumFromName( const char* str, const struct Translation *table )
-{
-
-	if( !str ) {
-		return -1;
-	}
-
-	int i;
-	
-	for( i=0 ; (table[i].name[0] != '\0') ; i++ ) {
-		if ( !strcasecmp ( table[i].name, str ) ) {
-			return table[i].number;
-		}
-	}
-	return -1;
-}
-
+BOOST_AUTO_TEST_SUITE_END()
+//////////////////////////////////////////////////////////////////
