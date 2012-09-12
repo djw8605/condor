@@ -77,7 +77,7 @@ TransferD::read_files_handler(int cmd, Stream *sock)
 				"Failure to register transferd - Authentication failed" );
 			dprintf( D_ALWAYS, "setup_transfer_request_handler() "
 				"aborting: %s\n",
-				errstack.getFullText() );
+				errstack.getFullText().c_str() );
 			refuse( rsock );
 			return CLOSE_STREAM;
 		} 
@@ -354,7 +354,7 @@ TransferD::read_files_reaper(int tid, int exit_status)
 		result.Assign(ATTR_TREQ_SIGNALED, TRUE);
 		result.Assign(ATTR_TREQ_SIGNAL, signal);
 		result.Assign(ATTR_TREQ_UPDATE_STATUS, "NOT OK");
-		str.sprintf("Died with signal %d", signal);
+		str.formatstr("Died with signal %d", signal);
 		result.Assign(ATTR_TREQ_UPDATE_REASON, str);
 
 	} else {
@@ -372,7 +372,7 @@ TransferD::read_files_reaper(int tid, int exit_status)
 
 			default:
 				result.Assign(ATTR_TREQ_UPDATE_STATUS, "NOT OK");
-				str.sprintf("File transfer exited with incorrect exit code %d",
+				str.formatstr("File transfer exited with incorrect exit code %d",
 					exit_code);
 				result.Assign(ATTR_TREQ_UPDATE_REASON, str);
 				result.Assign(ATTR_TREQ_SIGNALED, FALSE);

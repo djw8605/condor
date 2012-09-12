@@ -793,7 +793,7 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::ReadCommand(
 
 					// generate a unique ID.
 					MyString tmpStr;
-					tmpStr.sprintf( "%s:%i:%i:%i", 
+					tmpStr.formatstr( "%s:%i:%i:%i", 
 									get_local_hostname().Value(), daemonCore->mypid,
 							 (int)time(0), ZZZ_always_increase() );
 					assert (m_sid == NULL);
@@ -1010,7 +1010,7 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::Authenticate
 		if( !auth_success ) {
 			dprintf( D_ALWAYS,
 					 "DC_AUTHENTICATE: reason for authentication failure: %s\n",
-					 errstack.getFullText() );
+					 errstack.getFullText().c_str() );
 		}
 		m_result = FALSE;
 		return CommandProtocolFinished;
@@ -1037,7 +1037,7 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::Authenticate
 			dprintf( D_ALWAYS,
 					 "DC_AUTHENTICATE: required authentication of %s failed: %s\n",
 					 m_sock->peer_ip_str(),
-					 errstack.getFullText() );
+					 errstack.getFullText().c_str() );
 			m_result = FALSE;
 			return CommandProtocolFinished;
 		}
@@ -1360,7 +1360,7 @@ DaemonCommandProtocol::CommandProtocolResult DaemonCommandProtocol::ExecCommand(
 		}
 
 		MyString command_desc;
-		command_desc.sprintf("command %d (%s)",m_req,m_comTable[cmd_index].command_descrip);
+		command_desc.formatstr("command %d (%s)",m_req,m_comTable[cmd_index].command_descrip);
 
 		if( m_comTable[cmd_index].force_authentication &&
 			!m_sock->isMappedFQU() )
