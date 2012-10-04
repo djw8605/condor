@@ -34,9 +34,9 @@ const char * INFNBatchResource::HashName( const char * batch_type,
 		const char * resource_name )
 {
 	static std::string hash_name;
-	hash_name = batch_type;
+	formatstr( hash_name, "batch %s", batch_type );
 	if ( resource_name && resource_name[0] ) {
-		sprintf_cat( hash_name, " %s", resource_name );
+		formatstr_cat( hash_name, " %s", resource_name );
 	}
 	return hash_name.c_str();
 }
@@ -83,7 +83,7 @@ INFNBatchResource::INFNBatchResource( const char *batch_type,
 
 	std::string gahp_name = batch_type;
 	if ( resource_name && *resource_name ) {
-		sprintf_cat( gahp_name, "/%s", resource_name );
+		formatstr_cat( gahp_name, "/%s", resource_name );
 		m_gahpIsRemote = true;
 	}
 
@@ -109,7 +109,7 @@ void INFNBatchResource::Reconfig()
 
 const char *INFNBatchResource::ResourceType()
 {
-	return m_batchType.c_str();
+	return "batch";
 }
 
 const char *INFNBatchResource::GetHashName()
